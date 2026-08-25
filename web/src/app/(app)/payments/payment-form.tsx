@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createPayment, updatePayment } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,46 @@ import {
 } from "@/lib/validations";
 
 type Option = { id: string; label: string };
+
+function PhotoField({ id, name, label }: { id: string; name: string; label: string }) {
+  const [preview, setPreview] = useState<string | null>(null);
+
+  // Revokes the previous object URL whenever a new one is set, and on unmount.
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <input
+        id={id}
+        name={name}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          setPreview(file ? URL.createObjectURL(file) : null);
+        }}
+        className="w-full text-sm text-foreground-muted file:mr-3 file:rounded-lg file:border-0 file:bg-surface-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:opacity-80"
+      />
+      <p className="mt-1 text-xs text-foreground-muted">
+        En tu celular puedes tomar la foto directamente con la cámara.
+      </p>
+      {preview && (
+        // eslint-disable-next-line @next/next/no-img-element -- local blob preview, not a remote asset
+        <img
+          src={preview}
+          alt=""
+          className="mt-2 h-32 w-32 rounded-lg border border-border object-cover"
+        />
+      )}
+    </div>
+  );
+}
 
 export function PaymentForm({
   accounts,
@@ -186,26 +226,8 @@ export function PaymentForm({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="checkPhoto">Foto del cheque (evidencia)</Label>
-          <input
-            id="checkPhoto"
-            name="checkPhoto"
-            type="file"
-            accept="image/*"
-            className="w-full text-sm text-foreground-muted"
-          />
-        </div>
-        <div>
-          <Label htmlFor="receiptPhoto">Foto del recibo</Label>
-          <input
-            id="receiptPhoto"
-            name="receiptPhoto"
-            type="file"
-            accept="image/*"
-            className="w-full text-sm text-foreground-muted"
-          />
-        </div>
+        <PhotoField id="checkPhoto" name="checkPhoto" label="Foto del cheque (evidencia)" />
+        <PhotoField id="receiptPhoto" name="receiptPhoto" label="Foto del recibo" />
       </div>
 
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}
