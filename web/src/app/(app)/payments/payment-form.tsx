@@ -16,14 +16,14 @@ import {
 type Option = { id: string; label: string };
 
 function PhotoField({ id, name, label }: { id: string; name: string; label: string }) {
-  const [preview, setPreview] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<string[]>([]);
 
-  // Revokes the previous object URL whenever a new one is set, and on unmount.
+  // Revokes the previous object URLs whenever a new selection is made, and on unmount.
   useEffect(() => {
     return () => {
-      if (preview) URL.revokeObjectURL(preview);
+      previews.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [preview]);
+  }, [previews]);
 
   return (
     <div>
@@ -34,22 +34,28 @@ function PhotoField({ id, name, label }: { id: string; name: string; label: stri
         type="file"
         accept="image/*"
         capture="environment"
+        multiple
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          setPreview(file ? URL.createObjectURL(file) : null);
+          const files = Array.from(e.target.files ?? []);
+          setPreviews(files.map((file) => URL.createObjectURL(file)));
         }}
         className="w-full text-sm text-foreground-muted file:mr-3 file:rounded-lg file:border-0 file:bg-surface-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:opacity-80"
       />
       <p className="mt-1 text-xs text-foreground-muted">
-        En tu celular puedes tomar la foto directamente con la cámara.
+        Puedes seleccionar varias fotos. En tu celular puedes tomarlas directamente con la cámara.
       </p>
-      {preview && (
-        // eslint-disable-next-line @next/next/no-img-element -- local blob preview, not a remote asset
-        <img
-          src={preview}
-          alt=""
-          className="mt-2 h-32 w-32 rounded-lg border border-border object-cover"
-        />
+      {previews.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {previews.map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element -- local blob preview, not a remote asset
+            <img
+              key={url}
+              src={url}
+              alt={`Vista previa ${i + 1}`}
+              className="h-24 w-24 rounded-lg border border-border object-cover"
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -226,8 +232,16 @@ export function PaymentForm({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <PhotoField id="checkPhoto" name="checkPhoto" label="Foto del cheque (evidencia)" />
-        <PhotoField id="receiptPhoto" name="receiptPhoto" label="Foto del recibo" />
+        <PhotoField
+          id="checkPhoto"
+          name="checkPhoto"
+          label={
+            method === "check"
+              ? "Foto(s) del cheque (evidencia)"
+              : "Foto(s) de la transferencia (evidencia)"
+          }
+        />
+        <PhotoField id="receiptPhoto" name="receiptPhoto" label="Foto(s) del recibo" />
       </div>
 
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}

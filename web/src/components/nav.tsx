@@ -12,7 +12,7 @@ const links = [
 
 export function Nav({ email }: { email: string | undefined }) {
   return (
-    <header className="border-b border-border bg-surface">
+    <header className="border-b border-border bg-surface print:hidden">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <nav className="flex flex-wrap items-center gap-1">
           {links.map((link) => (

@@ -10,35 +10,44 @@ import type { Database } from "@/lib/supabase/types";
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
 
-function validateAttachment(file: File | null): string | null {
-  if (!file || file.size === 0) return null;
-  if (file.size > MAX_FILE_SIZE) return "La imagen no debe superar 8MB";
-  if (!ALLOWED_TYPES.includes(file.type)) return "Formato de imagen no soportado";
+function getFiles(formData: FormData, field: string): File[] {
+  return formData
+    .getAll(field)
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+}
+
+function validateAttachments(files: File[]): string | null {
+  for (const file of files) {
+    if (file.size > MAX_FILE_SIZE) return "Cada imagen debe pesar máximo 8MB";
+    if (!ALLOWED_TYPES.includes(file.type)) return "Formato de imagen no soportado";
+  }
   return null;
 }
 
-async function uploadAttachment(
+async function uploadAttachments(
   supabase: SupabaseClient<Database>,
   userId: string,
   paymentId: string,
-  file: File,
+  files: File[],
   type: "check_photo" | "receipt_photo",
 ) {
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${userId}/${paymentId}/${type}-${Date.now()}.${ext}`;
+  for (const file of files) {
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${userId}/${paymentId}/${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from("payment-attachments")
-    .upload(path, file, { contentType: file.type });
+    const { error: uploadError } = await supabase.storage
+      .from("payment-attachments")
+      .upload(path, file, { contentType: file.type });
 
-  if (uploadError) return;
+    if (uploadError) continue;
 
-  await supabase.from("payment_attachments").insert({
-    payment_id: paymentId,
-    user_id: userId,
-    attachment_type: type,
-    storage_path: path,
-  });
+    await supabase.from("payment_attachments").insert({
+      payment_id: paymentId,
+      user_id: userId,
+      attachment_type: type,
+      storage_path: path,
+    });
+  }
 }
 
 function parsePaymentForm(formData: FormData) {
@@ -62,13 +71,11 @@ export async function createPayment(_prevState: unknown, formData: FormData) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
-  const checkPhoto = formData.get("checkPhoto");
-  const receiptPhoto = formData.get("receiptPhoto");
-  const checkPhotoFile = checkPhoto instanceof File ? checkPhoto : null;
-  const receiptPhotoFile = receiptPhoto instanceof File ? receiptPhoto : null;
+  const checkPhotoFiles = getFiles(formData, "checkPhoto");
+  const receiptPhotoFiles = getFiles(formData, "receiptPhoto");
 
   const fileError =
-    validateAttachment(checkPhotoFile) ?? validateAttachment(receiptPhotoFile);
+    validateAttachments(checkPhotoFiles) ?? validateAttachments(receiptPhotoFiles);
   if (fileError) return { error: fileError };
 
   const supabase = await createClient();
@@ -96,12 +103,8 @@ export async function createPayment(_prevState: unknown, formData: FormData) {
 
   if (error || !payment) return { error: "No se pudo crear el pago" };
 
-  if (checkPhotoFile && checkPhotoFile.size > 0) {
-    await uploadAttachment(supabase, user.id, payment.id, checkPhotoFile, "check_photo");
-  }
-  if (receiptPhotoFile && receiptPhotoFile.size > 0) {
-    await uploadAttachment(supabase, user.id, payment.id, receiptPhotoFile, "receipt_photo");
-  }
+  await uploadAttachments(supabase, user.id, payment.id, checkPhotoFiles, "check_photo");
+  await uploadAttachments(supabase, user.id, payment.id, receiptPhotoFiles, "receipt_photo");
 
   revalidatePath("/payments");
   redirect(`/payments/${payment.id}`);
@@ -116,13 +119,11 @@ export async function updatePayment(_prevState: unknown, formData: FormData) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
-  const checkPhoto = formData.get("checkPhoto");
-  const receiptPhoto = formData.get("receiptPhoto");
-  const checkPhotoFile = checkPhoto instanceof File ? checkPhoto : null;
-  const receiptPhotoFile = receiptPhoto instanceof File ? receiptPhoto : null;
+  const checkPhotoFiles = getFiles(formData, "checkPhoto");
+  const receiptPhotoFiles = getFiles(formData, "receiptPhoto");
 
   const fileError =
-    validateAttachment(checkPhotoFile) ?? validateAttachment(receiptPhotoFile);
+    validateAttachments(checkPhotoFiles) ?? validateAttachments(receiptPhotoFiles);
   if (fileError) return { error: fileError };
 
   const supabase = await createClient();
@@ -148,12 +149,8 @@ export async function updatePayment(_prevState: unknown, formData: FormData) {
 
   if (error) return { error: "No se pudo actualizar el pago" };
 
-  if (checkPhotoFile && checkPhotoFile.size > 0) {
-    await uploadAttachment(supabase, user.id, id, checkPhotoFile, "check_photo");
-  }
-  if (receiptPhotoFile && receiptPhotoFile.size > 0) {
-    await uploadAttachment(supabase, user.id, id, receiptPhotoFile, "receipt_photo");
-  }
+  await uploadAttachments(supabase, user.id, id, checkPhotoFiles, "check_photo");
+  await uploadAttachments(supabase, user.id, id, receiptPhotoFiles, "receipt_photo");
 
   revalidatePath("/payments");
   revalidatePath(`/payments/${id}`);

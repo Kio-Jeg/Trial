@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { DeleteButton } from "@/components/delete-button";
 import { PaymentForm } from "../payment-form";
 import { deleteAttachment, deletePayment } from "../actions";
@@ -42,11 +44,18 @@ export default async function PaymentDetailPage({
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Editar pago</h1>
-        <DeleteButton
-          id={payment.id}
-          action={deletePayment}
-          confirmMessage="¿Eliminar este pago y sus adjuntos? Esta acción no se puede deshacer."
-        />
+        <div className="flex items-center gap-2">
+          <Link href={`/payments/${payment.id}/report`}>
+            <Button type="button" variant="secondary">
+              Generar reporte
+            </Button>
+          </Link>
+          <DeleteButton
+            id={payment.id}
+            action={deletePayment}
+            confirmMessage="¿Eliminar este pago y sus adjuntos? Esta acción no se puede deshacer."
+          />
+        </div>
       </div>
 
       <Card>
@@ -73,41 +82,76 @@ export default async function PaymentDetailPage({
         />
       </Card>
 
-      {attachmentsWithUrls.length > 0 && (
-        <Card>
-          <h2 className="mb-3 text-sm font-medium text-foreground-muted">Adjuntos</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {attachmentsWithUrls.map((attachment) => (
-              <div key={attachment.id} className="space-y-2">
-                <p className="text-xs text-foreground-muted">
-                  {attachment.attachment_type === "check_photo"
-                    ? "Foto del cheque"
-                    : "Foto del recibo"}
-                </p>
-                {attachment.url && (
-                  <a href={attachment.url} target="_blank" rel="noreferrer">
-                    <Image
-                      src={attachment.url}
-                      alt=""
-                      width={400}
-                      height={300}
-                      className="rounded-lg border border-border object-cover"
-                      unoptimized
-                    />
-                  </a>
-                )}
-                <form action={deleteAttachment}>
-                  <input type="hidden" name="attachmentId" value={attachment.id} />
-                  <input type="hidden" name="storagePath" value={attachment.storage_path} />
-                  <input type="hidden" name="paymentId" value={payment.id} />
-                  <button type="submit" className="text-xs text-danger hover:underline">
-                    Eliminar adjunto
-                  </button>
-                </form>
-              </div>
-            ))}
-          </div>
-        </Card>
+      <Card>
+        <h2 className="mb-3 text-sm font-medium text-foreground-muted">Adjuntos</h2>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <AttachmentGroup
+            title={
+              payment.payment_method === "check"
+                ? "Fotos del cheque"
+                : "Fotos de la transferencia"
+            }
+            attachments={attachmentsWithUrls.filter((a) => a.attachment_type === "check_photo")}
+            paymentId={payment.id}
+          />
+          <AttachmentGroup
+            title="Fotos del recibo"
+            attachments={attachmentsWithUrls.filter((a) => a.attachment_type === "receipt_photo")}
+            paymentId={payment.id}
+          />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function AttachmentGroup({
+  title,
+  attachments,
+  paymentId,
+}: {
+  title: string;
+  attachments: { id: string; url?: string; storage_path: string }[];
+  paymentId: string;
+}) {
+  const hasFiles = attachments.length > 0;
+
+  return (
+    <div>
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-medium">
+        {hasFiles ? (
+          <span className="text-success">✓ {title} ({attachments.length})</span>
+        ) : (
+          <span className="text-foreground-muted">○ {title} — sin archivos</span>
+        )}
+      </p>
+      {hasFiles && (
+        <div className="flex flex-wrap gap-3">
+          {attachments.map((attachment) => (
+            <div key={attachment.id} className="space-y-1">
+              {attachment.url && (
+                <a href={attachment.url} target="_blank" rel="noreferrer">
+                  <Image
+                    src={attachment.url}
+                    alt=""
+                    width={140}
+                    height={140}
+                    className="h-28 w-28 rounded-lg border border-border object-cover"
+                    unoptimized
+                  />
+                </a>
+              )}
+              <form action={deleteAttachment}>
+                <input type="hidden" name="attachmentId" value={attachment.id} />
+                <input type="hidden" name="storagePath" value={attachment.storage_path} />
+                <input type="hidden" name="paymentId" value={paymentId} />
+                <button type="submit" className="text-xs text-danger hover:underline">
+                  Eliminar
+                </button>
+              </form>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
