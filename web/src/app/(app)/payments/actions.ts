@@ -8,7 +8,13 @@ import { paymentSchema } from "@/lib/validations";
 import type { Database } from "@/lib/supabase/types";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "application/pdf",
+];
 
 function getFiles(formData: FormData, field: string): File[] {
   return formData

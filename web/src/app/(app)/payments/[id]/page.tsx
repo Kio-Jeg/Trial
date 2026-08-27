@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteButton } from "@/components/delete-button";
 import { PaymentForm } from "../payment-form";
 import { deleteAttachment, deletePayment } from "../actions";
+import { isPdfPath } from "@/lib/utils";
 
 export default async function PaymentDetailPage({
   params,
@@ -129,7 +130,18 @@ function AttachmentGroup({
         <div className="flex flex-wrap gap-3">
           {attachments.map((attachment) => (
             <div key={attachment.id} className="space-y-1">
-              {attachment.url && (
+              {attachment.url && isPdfPath(attachment.storage_path) && (
+                <a
+                  href={attachment.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-28 w-28 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-surface-muted text-center text-xs text-foreground-muted hover:border-accent"
+                >
+                  <span aria-hidden className="text-2xl">📄</span>
+                  Ver PDF
+                </a>
+              )}
+              {attachment.url && !isPdfPath(attachment.storage_path) && (
                 <a href={attachment.url} target="_blank" rel="noreferrer">
                   <Image
                     src={attachment.url}

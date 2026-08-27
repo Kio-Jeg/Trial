@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { PrintButton } from "@/components/print-button";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { paymentMethodLabels, paymentStatusLabels } from "@/lib/validations";
+import { isPdfPath } from "@/lib/utils";
 
 export default async function PaymentReportPage({
   params,
@@ -100,7 +101,7 @@ function ReportImageSection({
   photos,
 }: {
   title: string;
-  photos: { id: string; url?: string }[];
+  photos: { id: string; url?: string; storage_path: string }[];
 }) {
   return (
     <Card className="break-inside-avoid print:border-0 print:p-0 print:shadow-none">
@@ -111,9 +112,25 @@ function ReportImageSection({
         <p className="text-sm text-foreground-muted">Sin archivos cargados.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {photos.map(
-            (photo) =>
-              photo.url && (
+          {photos.map((photo) =>
+            photo.url ? (
+              isPdfPath(photo.storage_path) ? (
+                <div key={photo.id} className="space-y-2 break-inside-avoid">
+                  <embed
+                    src={photo.url}
+                    type="application/pdf"
+                    className="h-96 w-full rounded-lg border border-border print:border-neutral-300"
+                  />
+                  <a
+                    href={photo.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-accent hover:underline print:text-neutral-700"
+                  >
+                    Abrir PDF en una pestaña nueva ↗
+                  </a>
+                </div>
+              ) : (
                 <Image
                   key={photo.id}
                   src={photo.url}
@@ -123,7 +140,8 @@ function ReportImageSection({
                   className="w-full rounded-lg border border-border object-contain print:border-neutral-300"
                   unoptimized
                 />
-              ),
+              )
+            ) : null,
           )}
         </div>
       )}

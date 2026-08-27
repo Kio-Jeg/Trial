@@ -16,12 +16,12 @@ import {
 type Option = { id: string; label: string };
 
 function PhotoField({ id, name, label }: { id: string; name: string; label: string }) {
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [previews, setPreviews] = useState<{ url: string; isPdf: boolean }[]>([]);
 
   // Revokes the previous object URLs whenever a new selection is made, and on unmount.
   useEffect(() => {
     return () => {
-      previews.forEach((url) => URL.revokeObjectURL(url));
+      previews.forEach((p) => URL.revokeObjectURL(p.url));
     };
   }, [previews]);
 
@@ -32,29 +32,44 @@ function PhotoField({ id, name, label }: { id: string; name: string; label: stri
         id={id}
         name={name}
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf"
         capture="environment"
         multiple
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
-          setPreviews(files.map((file) => URL.createObjectURL(file)));
+          setPreviews(
+            files.map((file) => ({
+              url: URL.createObjectURL(file),
+              isPdf: file.type === "application/pdf",
+            })),
+          );
         }}
         className="w-full text-sm text-foreground-muted file:mr-3 file:rounded-lg file:border-0 file:bg-surface-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:opacity-80"
       />
       <p className="mt-1 text-xs text-foreground-muted">
-        Puedes seleccionar varias fotos. En tu celular puedes tomarlas directamente con la cámara.
+        Puedes seleccionar varias fotos o PDF. En tu celular puedes tomarlas directamente con la cámara.
       </p>
       {previews.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {previews.map((url, i) => (
-            // eslint-disable-next-line @next/next/no-img-element -- local blob preview, not a remote asset
-            <img
-              key={url}
-              src={url}
-              alt={`Vista previa ${i + 1}`}
-              className="h-24 w-24 rounded-lg border border-border object-cover"
-            />
-          ))}
+          {previews.map((preview, i) =>
+            preview.isPdf ? (
+              <div
+                key={preview.url}
+                className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-surface-muted text-center text-xs text-foreground-muted"
+              >
+                <span aria-hidden>📄</span>
+                PDF {i + 1}
+              </div>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element -- local blob preview, not a remote asset
+              <img
+                key={preview.url}
+                src={preview.url}
+                alt={`Vista previa ${i + 1}`}
+                className="h-24 w-24 rounded-lg border border-border object-cover"
+              />
+            ),
+          )}
         </div>
       )}
     </div>
